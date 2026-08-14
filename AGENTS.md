@@ -5,20 +5,34 @@
 - **Anti-Hanging Protocol:** Always use flat execution without outer quotes for single commands: `pwsh -c <command>`.
 
 ## Authorized Executables & Commands (Allow List)
-- **Package Management:**
+- **Package Management & Tooling:**
   - `pwsh -c uv --version`
   - `pwsh -c uv sync --all-groups`
   - `pwsh -c uv pip install <pkg>`
-- **Python Execution:**
+  - `pwsh -c npm --prefix web ci`
+  - `pwsh -c npm --prefix web run build`
+  - `pwsh -c npm --prefix web run dev`
+
+- **Python Execution & Applications:**
   - `pwsh -c .venv\Scripts\python.exe <script>`
-- **Testing & Quality Checks:**
+  - `pwsh -c .venv\Scripts\python.exe scripts/test_llm_live.py`
+  - `pwsh -c .venv\Scripts\python.exe -m job_scout.app`
+  - `pwsh -c .venv\Scripts\python.exe -m job_scout.api`
+  - `pwsh -c .venv\Scripts\python.exe scripts/run_batch.py`
+  - `pwsh -c .venv\Scripts\python.exe scripts/run_tailor_batch.py`
+
+- **Testing, Quality & Evaluation:**
   - `pwsh -c .venv\Scripts\pytest.exe`
   - `pwsh -c .venv\Scripts\pytest.exe <path>`
   - `pwsh -c .venv\Scripts\pytest.exe gates/`
-- **Linting & Formatting:**
-  - `pwsh -c .venv\Scripts\ruff.exe check src/ tests/`
-  - `pwsh -c .venv\Scripts\ruff.exe format src/ tests/`
+  - `pwsh -c .venv\Scripts\ruff.exe check src/ tests/ scripts/`
+  - `pwsh -c .venv\Scripts\ruff.exe format src/ tests/ scripts/`
+
+- **File System & Utility Checks:**
+  - `pwsh -c Test-Path <path>`
+
 - **Git Operations (3-Step Commit Protocol):**
-  - Step 1: `pwsh -c git add -u` (and `pwsh -c git add <untracked_files>`)
-  - Step 2: `cmd /c git commit -m "feat/fix: description"`
-  - Step 3: `pwsh -c git push`
+  - Status/Log: `pwsh -c git status`, `pwsh -c git status -u`, `pwsh -c git log -n 5`
+  - Step 1 (Flat auto-run): `pwsh -c git add -u` (and `pwsh -c git add <untracked_files>`)
+  - Step 2 (CMD auto-run preserves quotes): `cmd /c git commit -m "feat/fix: description"`
+  - Step 3 (Flat auto-run): `pwsh -c git push`
