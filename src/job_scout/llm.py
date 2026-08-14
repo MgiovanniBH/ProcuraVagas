@@ -76,12 +76,13 @@ def get_chat_model(model: str, temperature: float = 0.0) -> BaseChatModel:
         model_name = model.removeprefix("nvidia:")
         api_key = _get_nvidia_key()
         base_url = settings.nvidia_base_url or "https://integrate.api.nvidia.com/v1"
+        max_tokens = settings.nvidia_max_tokens
 
         extra_body: dict[str, Any] | None = None
         if "nemotron" in model_name or "reasoning" in model_name:
             extra_body = {
                 "chat_template_kwargs": {"enable_thinking": True},
-                "reasoning_budget": 16384,
+                "reasoning_budget": max_tokens,
             }
 
         return ChatOpenAI(
@@ -89,7 +90,7 @@ def get_chat_model(model: str, temperature: float = 0.0) -> BaseChatModel:
             api_key=api_key or None,
             base_url=base_url,
             temperature=temperature,
-            max_tokens=16384,
+            max_tokens=max_tokens,
             extra_body=extra_body,
         )
 

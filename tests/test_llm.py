@@ -25,11 +25,11 @@ def test_get_chat_model_nvidia(monkeypatch):
     assert isinstance(model, ChatOpenAI)
     assert model.model_name == "nvidia/nemotron-3.5-lightning-30b-a3b"
     assert model.openai_api_base == "https://integrate.api.nvidia.com/v1"
-    assert model.max_tokens == 16384
+    assert model.max_tokens == 524288
     assert model.temperature == 0.7
     assert model.extra_body == {
         "chat_template_kwargs": {"enable_thinking": True},
-        "reasoning_budget": 16384,
+        "reasoning_budget": 524288,
     }
 
 
