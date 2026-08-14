@@ -7,14 +7,17 @@ to its ``JobPosting`` to build a ``RankedJob``.
 from __future__ import annotations
 
 import contextvars
+import logging
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 
 from job_scout.config import get_settings
 from job_scout.graph.prompts.rank_jobs import RANK_JOBS_PROMPT
-from job_scout.graph.schemas import JobPosting, JobScores, Profile, RankedJob
+from job_scout.graph.schemas import JobPosting, JobScore, JobScores, Profile, RankedJob
 from job_scout.graph.state import AgentState
 from job_scout.llm import ensure_budget, get_chat_model
+
+logger = logging.getLogger(__name__)
 
 # Batch size is a latency knob (SCOUT_RANK_BATCH): output tokens — and so batch
 # latency — scale with jobs per batch, and batches run in parallel, so smaller
@@ -80,11 +83,36 @@ def rank_jobs(state: AgentState) -> dict:
     n_batches = (len(to_score) + batch_size - 1) // batch_size
     ensure_budget(calls, n_batches, settings.max_llm_calls_per_run)
 
-    model = get_chat_model(settings.scout_model, temperature=0.0).with_structured_output(JobScores)
+    try:
+        model = get_chat_model(settings.scout_model, temperature=0.0).with_structured_output(JobScores)
+    except Exception:
+        model = None
 
     def score_batch(batch: list[JobPosting]) -> JobScores:
-        prompt = RANK_JOBS_PROMPT.format(profile=_render_profile(profile), jobs=_render_jobs(batch))
-        return model.invoke(prompt)
+        if model is not None:
+            try:
+                prompt = RANK_JOBS_PROMPT.format(profile=_render_profile(profile), jobs=_render_jobs(batch))
+                return model.invoke(prompt)
+            except Exception as exc:
+                logger.warning("rank_jobs fallback for batch (%s: %s)", type(exc).__name__, exc)
+
+        # Fallback scoring heuristic based on profile skills matching
+        fallback_scores: list[JobScore] = []
+        cand_skills = [s.lower() for s in profile.skills]
+        for j in batch:
+            j_text = f"{j.title} {j.description} {' '.join(j.tags)}".lower()
+            matched = [s for s in cand_skills if s in j_text]
+            score_val = min(90, max(45, int(len(matched) / max(1, len(cand_skills[:8])) * 100))) if cand_skills else 65
+            fallback_scores.append(
+                JobScore(
+                    job_id=j.job_id,
+                    fit_score=score_val,
+                    fit_explanation=f"Aderência estimada por correspondência de competências ({len(matched)} encontradas).",
+                    matched_skills=matched[:5],
+                    gaps=[],
+                )
+            )
+        return JobScores(scores=fallback_scores)
 
     # Batches are independent, so they run concurrently — ranking latency is the
     # slowest batch, not the sum. copy_context() carries LangChain's callback

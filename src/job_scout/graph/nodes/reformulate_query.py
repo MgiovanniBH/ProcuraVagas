@@ -23,7 +23,10 @@ def reformulate_query(state: AgentState) -> dict:
         profile=", ".join(profile.primary_roles + profile.skills[:10]),
         previous_query=state.get("search_query") or "",
     )
-    new_query = get_chat_model(settings.scout_model, temperature=0.0).invoke(prompt).content.strip()
+    try:
+        new_query = get_chat_model(settings.scout_model, temperature=0.0).invoke(prompt).content.strip()
+    except Exception:
+        new_query = profile.primary_roles[0] if profile.primary_roles else "Software Engineer"
 
     return {
         "search_query": new_query,

@@ -72,30 +72,33 @@ def fetch_jobs(state: AgentState) -> dict:
     profile = state["profile"]
     errors = list(state.get("errors", []))
 
-    # Choosing tool arguments is a trivial call — SCOUT_FETCH_MODEL lets a
-    # small/fast model do it (~1s instead of ~3s) without touching ranking.
-    model_name = settings.scout_fetch_model or settings.scout_model
-    model = get_chat_model(model_name, temperature=0.0).bind_tools([search_jobs])
-    message = model.invoke([SystemMessage(_SYSTEM), HumanMessage(_build_prompt(state))])
-    calls += 1
-
     location = profile.locations[0] if profile.locations else None
-    if message.tool_calls:
-        args = message.tool_calls[0]["args"]
-        query = args.get("query") or " ".join(profile.primary_roles[:2])
-        query, dropped = _trim_query(query)
-        if dropped:
-            # Visible in the trace rather than silent: a query that needed
-            # trimming is the early warning that the sources are about to
-            # return nothing and the fallback board is about to fill in.
-            errors.append(f"fetch_jobs: query trimmed to {MAX_QUERY_WORDS} words, dropped {dropped!r}")
-        country = args.get("country")
-        remote = bool(args.get("remote", profile.remote_ok))
-    else:
-        errors.append("fetch_jobs: LLM issued no tool call; used profile-derived query")
-        query = " ".join(profile.primary_roles[:2]) or " ".join(profile.skills[:3])
-        country = None
-        remote = profile.remote_ok
+    query = " ".join(profile.primary_roles[:2]) or " ".join(profile.skills[:3]) or "Software Engineer"
+    country = None
+    remote = profile.remote_ok
+
+    # Choosing tool arguments via LLM; falls back smoothly if model or key has issues
+    try:
+        model_name = settings.scout_fetch_model or settings.scout_model
+        model = get_chat_model(model_name, temperature=0.0)
+        try:
+            tool_model = model.bind_tools([search_jobs])
+            message = tool_model.invoke([SystemMessage(_SYSTEM), HumanMessage(_build_prompt(state))])
+            calls += 1
+            if message.tool_calls:
+                args = message.tool_calls[0]["args"]
+                raw_query = args.get("query") or query
+                query, dropped = _trim_query(raw_query)
+                if dropped:
+                    errors.append(f"fetch_jobs: query trimmed to {MAX_QUERY_WORDS} words, dropped {dropped!r}")
+                country = args.get("country")
+                remote = bool(args.get("remote", profile.remote_ok))
+            else:
+                errors.append("fetch_jobs: LLM issued no tool call; used profile-derived query")
+        except Exception as tool_exc:
+            errors.append(f"fetch_jobs: tool binding fallback ({type(tool_exc).__name__}: {tool_exc})")
+    except Exception as exc:
+        errors.append(f"fetch_jobs: LLM invocation skipped ({type(exc).__name__}: {exc})")
 
     jobs, sources = run_search(query=query, location=location, country=country, remote=remote, limit=settings.scout_max_jobs)
     jobs = _dedupe_with_existing(state.get("jobs", []), jobs)[:MERGED_CEILING]
