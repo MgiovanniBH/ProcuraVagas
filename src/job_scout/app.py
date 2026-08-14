@@ -1009,7 +1009,7 @@ def main() -> None:
 
     serve_in_thread()
     print(f"Jobvis console: http://localhost:{CONSOLE_PORT}")
-    build_app().launch(server_name="127.0.0.1", server_port=7860, theme=THEME, css=CSS)
+    build_app().launch(server_name="192.168.0.14", server_port=7860, theme=THEME, css=CSS)
 
 
 if __name__ == "__main__":
