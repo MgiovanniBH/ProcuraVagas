@@ -39,3 +39,7 @@ blog/
 node_modules/
 web/out/
 web/.next/
+
+# Agent system
+.agents/
+spec.md

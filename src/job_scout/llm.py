@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from typing import Any
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_openai import ChatOpenAI
 
 from job_scout.config import get_settings
 
@@ -35,9 +37,62 @@ def _export_openai_key() -> None:
         os.environ["OPENAI_API_KEY"] = key
 
 
+def _get_nvidia_key() -> str:
+    """Get the NVIDIA key from environment or settings."""
+    env_key = os.environ.get("NVIDIA_API_KEY")
+    if env_key:
+        return env_key
+    settings_key = get_settings().nvidia_api_key.get_secret_value()
+    if settings_key:
+        os.environ["NVIDIA_API_KEY"] = settings_key
+        return settings_key
+    return ""
+
+
+def get_nvidia_client():
+    """Return an OpenAI client configured for NVIDIA NIM."""
+    from openai import OpenAI
+
+    settings = get_settings()
+    api_key = _get_nvidia_key()
+    base_url = settings.nvidia_base_url or "https://integrate.api.nvidia.com/v1"
+    return OpenAI(base_url=base_url, api_key=api_key or "missing-key")
+
+
 @lru_cache(maxsize=8)
 def get_chat_model(model: str, temperature: float = 0.0) -> BaseChatModel:
-    """Return a cached chat model for a LangChain provider string (e.g. ``openai:gpt-4o-mini``)."""
+    """Return a cached chat model for a provider string.
+
+    Supports:
+    - NVIDIA models: ``nvidia:<model_name>`` or ``nvidia/<model_name>``
+      (e.g. ``nvidia:nvidia/nemotron-3.5-lightning-30b-a3b`` or ``nvidia/nemotron-3.5-lightning-30b-a3b``)
+      connecting to NVIDIA NIM API base URL (default: ``https://integrate.api.nvidia.com/v1``).
+    - OpenAI models: ``openai:<model_name>`` (e.g. ``openai:gpt-4o-mini``).
+    - Other LangChain providers supported by ``init_chat_model`` (e.g. ``groq:...``, ``ollama:...``).
+    """
+    settings = get_settings()
+
+    if model.startswith("nvidia:") or model.startswith("nvidia/"):
+        model_name = model.removeprefix("nvidia:")
+        api_key = _get_nvidia_key()
+        base_url = settings.nvidia_base_url or "https://integrate.api.nvidia.com/v1"
+
+        extra_body: dict[str, Any] | None = None
+        if "nemotron" in model_name or "reasoning" in model_name:
+            extra_body = {
+                "chat_template_kwargs": {"enable_thinking": True},
+                "reasoning_budget": 16384,
+            }
+
+        return ChatOpenAI(
+            model=model_name,
+            api_key=api_key or None,
+            base_url=base_url,
+            temperature=temperature,
+            max_tokens=16384,
+            extra_body=extra_body,
+        )
+
     if model.startswith("openai:"):
         _export_openai_key()
     return init_chat_model(model, temperature=temperature)

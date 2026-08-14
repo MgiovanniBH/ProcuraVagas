@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     scout_tailor_model: str = Field(default="openai:gpt-4o-mini", alias="SCOUT_TAILOR_MODEL")
 
     openai_api_key: SecretStr = Field(default=SecretStr(""), alias="OPENAI_API_KEY")
+    nvidia_api_key: SecretStr = Field(default=SecretStr(""), alias="NVIDIA_API_KEY")
+    nvidia_base_url: str = Field(default="https://integrate.api.nvidia.com/v1", alias="NVIDIA_BASE_URL")
 
     opik_api_key: SecretStr = Field(default=SecretStr(""), alias="OPIK_API_KEY")
     opik_workspace: str = Field(default="", alias="OPIK_WORKSPACE")
@@ -78,6 +80,7 @@ class Settings(BaseSettings):
         "scout_fetch_model",
         "elevenlabs_agent_id",
         "elevenlabs_voice_id",
+        "nvidia_base_url",
         mode="before",
     )
     @classmethod
@@ -92,6 +95,11 @@ class Settings(BaseSettings):
             if value.startswith("#"):
                 return ""
         return value
+
+    @property
+    def has_nvidia(self) -> bool:
+        """Whether an NVIDIA API key is configured."""
+        return bool(self.nvidia_api_key.get_secret_value())
 
     @property
     def has_jsearch(self) -> bool:
