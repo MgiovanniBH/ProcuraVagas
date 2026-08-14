@@ -105,7 +105,7 @@ class JobSource(Protocol):
 
 
 class JSearchSource:
-    """Official Google-for-Jobs aggregator (OpenWeb Ninja) with city-level search.
+    """Official Google-for-Jobs aggregator (OpenWeb Ninja / RapidAPI) with city-level search.
 
     Location is honoured deterministically: the location is folded into the query
     (``"<query> in <location>"``) and the country code is derived from it, so a
@@ -114,6 +114,7 @@ class JSearchSource:
 
     name = "jsearch"
     BASE = "https://api.openwebninja.com/jsearch/search-v2"
+    RAPIDAPI_BASE = "https://jsearch.p.rapidapi.com/search-v2"
 
     # NOTE: this 15.0s default is the subject of the Ollie demo in docs/ollie.md
     # — measured spending its full timeout for zero jobs on every search, and
@@ -139,8 +140,21 @@ class JSearchSource:
         }
         if remote:
             params["work_from_home"] = "true"
+
+        headers = {
+            "X-API-Key": self.api_key,
+            "x-rapidapi-key": self.api_key,
+            "x-rapidapi-host": "jsearch.p.rapidapi.com",
+            "User-Agent": "curl/8.5.0",
+            "Accept": "application/json",
+        }
+
+        # RapidAPI keys are standard 50-char alphanumeric strings
+        is_rapidapi = len(self.api_key) == 50 or "rapid" in self.api_key.lower()
+        url = self.RAPIDAPI_BASE if is_rapidapi else self.BASE
+
         try:
-            resp = httpx.get(self.BASE, params=params, headers={"X-API-Key": self.api_key}, timeout=self.timeout)
+            resp = httpx.get(url, params=params, headers=headers, timeout=self.timeout)
             resp.raise_for_status()
             data = resp.json()
         except (httpx.HTTPError, json.JSONDecodeError, ValueError) as exc:

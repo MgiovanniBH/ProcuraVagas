@@ -41,12 +41,13 @@ def main() -> int:
     headers = {
         "x-rapidapi-key": api_key,
         "x-rapidapi-host": "jsearch.p.rapidapi.com",
-        "Content-Type": "application/json",
+        "User-Agent": "curl/8.5.0",
+        "Accept": "application/json",
     }
 
-    print(f"\n[1/2] Enviando requisição GET para {url}...")
+    print(f"\n[1/2] Enviando requisição GET para {url} (com User-Agent curl/8.5.0 e timeout=30s)...")
     try:
-        response = requests.get(url, headers=headers, params=querystring, timeout=15)
+        response = requests.get(url, headers=headers, params=querystring, timeout=30.0)
         print(f"-> Status Code HTTP: {response.status_code}")
 
         if response.status_code == 200:
