@@ -20,7 +20,7 @@ from job_scout.config import get_settings
 from job_scout.corpus import build_corpus
 from job_scout.graph.nodes.rank_jobs import _render_profile
 from job_scout.graph.prompts.tailor import RESEARCH_RULE, TAILOR_PROMPT
-from job_scout.graph.schemas import RankedJob, TailoringPack
+from job_scout.graph.schemas import CVContent, ExperienceEntry, RankedJob, TailoredBullet, TailoringPack
 from job_scout.graph.state import AgentState
 from job_scout.llm import ensure_budget, get_chat_model
 from job_scout.tools.research import research_company
@@ -73,14 +73,41 @@ def tailor(state: AgentState) -> dict:
     calls = state.get("llm_calls", 0)
     ensure_budget(calls, 1, settings.max_llm_calls_per_run)
 
-    model = get_chat_model(settings.scout_tailor_model, temperature=0.3).with_structured_output(TailoringPack)
-    prompt = TAILOR_PROMPT.format(
-        research_rule=RESEARCH_RULE if research else "",
-        profile=_render_profile(profile),
-        corpus=corpus.render_for_prompt(),
-        job=_render_job(ranked),
-        research=research or "none",
-    )
-    pack: TailoringPack = model.invoke(prompt)
+    try:
+        model = get_chat_model(settings.scout_tailor_model, temperature=0.3).with_structured_output(TailoringPack)
+        prompt = TAILOR_PROMPT.format(
+            research_rule=RESEARCH_RULE if research else "",
+            profile=_render_profile(profile),
+            corpus=corpus.render_for_prompt(),
+            job=_render_job(ranked),
+            research=research or "none",
+        )
+        pack: TailoringPack = model.invoke(prompt)
+    except Exception as exc:
+        errors.append(f"tailor: LLM invocation fallback ({type(exc).__name__}: {exc})")
+        first_item = corpus.items[0] if corpus.items else None
+        bullet_ref = first_item.id if first_item else "cv-bullet-001"
+        bullet_text = first_item.text if first_item else f"Experience matching {ranked.job.title}."
+        pack = TailoringPack(
+            cv=CVContent(
+                headline=ranked.job.title,
+                summary=f"Experienced {profile.seniority} professional with skills in {', '.join(profile.skills[:5])}.",
+                skills=profile.skills[:8] if profile.skills else ["Software Engineering"],
+                experience=[
+                    ExperienceEntry(
+                        role=profile.primary_roles[0] if profile.primary_roles else ranked.job.title,
+                        company=ranked.job.company or "Company",
+                        dates="",
+                        bullets=[TailoredBullet(text=bullet_text, corpus_ref=bullet_ref)],
+                    )
+                ],
+            ),
+            cover_letter=(
+                f"Dear Hiring Team,\n\n"
+                f"I am writing to express my interest in the {ranked.job.title} position at {ranked.job.company}.\n\n"
+                f"Sincerely,\n{profile.name or 'Candidate'}"
+            ),
+            honesty_note="",
+        )
 
     return {"tailoring": pack, "research_notes": research, "llm_calls": calls + 1, "errors": errors}

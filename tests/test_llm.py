@@ -25,11 +25,11 @@ def test_get_chat_model_nvidia(monkeypatch):
     assert isinstance(model, ChatOpenAI)
     assert model.model_name == "nvidia/nemotron-3.5-lightning-30b-a3b"
     assert model.openai_api_base == "https://integrate.api.nvidia.com/v1"
-    assert model.max_tokens == 524288
+    assert model.max_tokens == 4096
     assert model.temperature == 0.7
     assert model.extra_body == {
         "chat_template_kwargs": {"enable_thinking": True},
-        "reasoning_budget": 524288,
+        "reasoning_budget": 2048,
     }
 
 
@@ -105,4 +105,35 @@ def test_fetch_jobs_model_independent_fallback(monkeypatch, sample_profile):
     assert "search_query" in result
     assert len(result["jobs"]) > 0
     assert any("fetch_jobs" in err for err in result["errors"])
+
+
+def test_tailor_model_timeout_fallback(monkeypatch, sample_profile):
+    """tailor should gracefully fall back if the LLM raises a 504 / timeout / server error."""
+    import job_scout.graph.nodes.tailor as tailor_mod
+    from job_scout.graph.nodes.tailor import tailor
+    from tests.test_tailor_node import _ranked
+
+    def failing_get_chat_model(*args, **kwargs):
+        class FailingStructuredLLM:
+            def with_structured_output(self, *a, **k):
+                return self
+            def invoke(self, *a, **k):
+                raise RuntimeError("504 Gateway Timeout")
+        return FailingStructuredLLM()
+
+    monkeypatch.setattr(tailor_mod, "get_chat_model", failing_get_chat_model)
+
+    state = {
+        "cv_text": "Sample CV text\nSenior Engineer with Python experience",
+        "profile": sample_profile,
+        "ranked_jobs": [_ranked()],
+        "selected_job_id": "j1",
+        "llm_calls": 3,
+        "errors": [],
+    }
+
+    update = tailor(state)
+    assert update["tailoring"] is not None
+    assert any("tailor: LLM invocation fallback" in e for e in update["errors"])
+    assert update["tailoring"].cv.headline is not None
 

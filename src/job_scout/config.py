@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr = Field(default=SecretStr(""), alias="OPENAI_API_KEY")
     nvidia_api_key: SecretStr = Field(default=SecretStr(""), alias="NVIDIA_API_KEY")
     nvidia_base_url: str = Field(default="https://integrate.api.nvidia.com/v1", alias="NVIDIA_BASE_URL")
-    nvidia_max_tokens: int = Field(default=524288, alias="NVIDIA_MAX_TOKENS")
+    nvidia_max_tokens: int = Field(default=4096, alias="NVIDIA_MAX_TOKENS")
 
     opik_api_key: SecretStr = Field(default=SecretStr(""), alias="OPIK_API_KEY")
     opik_workspace: str = Field(default="", alias="OPIK_WORKSPACE")

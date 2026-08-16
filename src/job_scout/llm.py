@@ -97,9 +97,10 @@ def get_chat_model(model: str, temperature: float = 0.0) -> BaseChatModel:
 
         extra_body: dict[str, Any] | None = None
         if "nemotron" in model_name.lower() or "reasoning" in model_name.lower():
+            reasoning_budget = min(max_tokens, 2048)
             extra_body = {
                 "chat_template_kwargs": {"enable_thinking": True},
-                "reasoning_budget": max_tokens,
+                "reasoning_budget": reasoning_budget,
             }
 
         return ChatOpenAI(
@@ -109,12 +110,14 @@ def get_chat_model(model: str, temperature: float = 0.0) -> BaseChatModel:
             temperature=temperature,
             max_tokens=max_tokens,
             extra_body=extra_body,
+            timeout=90.0,
+            max_retries=3,
         )
 
     if model.startswith("openai:"):
         _export_openai_key()
 
-    return init_chat_model(model, temperature=temperature)
+    return init_chat_model(model, temperature=temperature, timeout=90.0, max_retries=3)
 
 
 def ensure_budget(current_calls: int, planned: int, max_calls: int) -> None:
