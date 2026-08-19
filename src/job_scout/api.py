@@ -376,7 +376,8 @@ def serve_in_thread(port: int = CONSOLE_PORT) -> None:
 
     import uvicorn
 
-    server = uvicorn.Server(uvicorn.Config(create_app(), host="127.0.0.1", port=port, log_level="warning"))
+    host = os.environ.get("JOBVIS_HOST", "0.0.0.0")  # noqa: S104
+    server = uvicorn.Server(uvicorn.Config(create_app(), host=host, port=port, log_level="warning"))
     threading.Thread(target=server.run, daemon=True, name="jobvis-api").start()
 
 
@@ -389,7 +390,8 @@ def main() -> None:
     """
     import uvicorn
 
-    uvicorn.run(create_app(), host="127.0.0.1", port=CONSOLE_PORT)
+    host = os.environ.get("JOBVIS_HOST", "0.0.0.0")  # noqa: S104
+    uvicorn.run(create_app(), host=host, port=CONSOLE_PORT)
 
 
 if __name__ == "__main__":

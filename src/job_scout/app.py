@@ -83,6 +83,8 @@ CSS = """
   max-width: 760px !important;
   margin: 0 auto !important;
   position: relative;
+  padding-bottom: 160px !important;
+  min-height: 100vh !important;
 }
 body::before {
   content: "";
@@ -232,15 +234,64 @@ body::after {
 .dark .js-fit-mid  { --tier-fg: #FBBF24; }
 .dark .js-fit-low  { --tier-fg: #94A3B8; }
 
-/* --- States --- */
+/* --- States & Loading --- */
 .js-empty { text-align: center; padding: 40px 20px; color: var(--body-text-color-subdued); }
 .js-empty .js-empty-icon { font-size: 1.8rem; opacity: 0.8; margin-bottom: 8px; }
-.js-status { font-size: 0.86rem; color: var(--body-text-color-subdued); text-align: center; min-height: 18px; }
-.js-status-err { color: #B45309; }
+.js-status { font-size: 0.88rem; color: var(--body-text-color-subdued); text-align: center; margin-top: 10px; }
+.js-status-err {
+  color: #B45309; background: rgba(217,119,6,0.08);
+  border: 1px solid rgba(217,119,6,0.25); border-radius: 8px; padding: 8px 14px;
+}
 .js-spin { display: inline-block; width: 13px; height: 13px; margin-right: 8px; vertical-align: -1px;
   border: 2px solid rgba(14,110,74,0.25); border-top-color: var(--js-accent); border-radius: 50%;
   animation: js-rotate .7s linear infinite; }
 @keyframes js-rotate { to { transform: rotate(360deg); } }
+
+/* --- Intro Box & Feature Grid --- */
+.js-intro-box { margin: 10px auto 16px; max-width: 680px; }
+.js-features-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 18px 0 16px;
+}
+.js-feature-item {
+  background: var(--block-background-fill); border: 1px solid var(--border-color-primary);
+  border-radius: 14px; padding: 16px 14px; text-align: center; box-shadow: 0 1px 3px rgba(20,19,17,0.03);
+}
+.js-feature-icon { font-size: 1.6rem; margin-bottom: 6px; }
+.js-feature-title { font-weight: 600; font-size: 0.92rem; margin-bottom: 4px; color: var(--body-text-color); }
+.js-feature-text { font-size: 0.78rem; color: var(--body-text-color-subdued); line-height: 1.45; }
+.js-upload-prompt {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 0.90rem; color: var(--body-text-color-subdued); margin-top: 12px;
+}
+
+/* --- Rich Loading Card --- */
+.js-loading-card {
+  background: var(--block-background-fill); border: 1px solid var(--border-color-primary);
+  border-radius: 18px; padding: 36px 24px; text-align: center; margin: 24px auto; max-width: 540px;
+  box-shadow: 0 12px 30px rgba(20,19,17,0.06); display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.js-loading-radar {
+  width: 48px; height: 48px; border-radius: 50%; border: 3px solid rgba(14,110,74,0.20);
+  border-top-color: var(--js-accent); animation: js-rotate 0.8s linear infinite; margin-bottom: 4px;
+}
+.js-loading-title {
+  font-family: 'Fraunces', serif; font-size: 1.35rem; font-weight: 600; margin: 0; color: var(--body-text-color);
+}
+.js-loading-sub {
+  font-size: 0.88rem; color: var(--body-text-color-subdued); margin: 0; max-width: 420px; line-height: 1.5;
+}
+.js-loading-pulse-bar {
+  width: 200px; height: 5px; border-radius: 5px; background: rgba(14,110,74,0.15);
+  overflow: hidden; position: relative; margin-top: 6px;
+}
+.js-loading-pulse-bar::after {
+  content: ""; position: absolute; inset: 0; width: 45%;
+  background: var(--js-accent); border-radius: 5px; animation: js-shimmer 1.4s ease-in-out infinite alternate;
+}
+@keyframes js-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(230%); }
+}
 
 /* --- Footer --- */
 .js-footer { text-align: center; font-size: 0.82rem; color: var(--body-text-color-subdued);
@@ -275,6 +326,7 @@ body::after {
 footer { display: none !important; }
 .js-page { background: transparent !important; border: none !important; box-shadow: none !important; }
 .js-page > .styler, .js-page .form { background: transparent !important; border: none !important; box-shadow: none !important; }
+.js-bottom-spacer { height: 120px; width: 100%; clear: both; display: block; }
 
 /* --- Jobvis: a one-line pointer at the voice console on :8000 --- */
 #jv-strip { display: flex; align-items: center; justify-content: center; gap: 12px;
@@ -326,9 +378,17 @@ def _stepper(active: int) -> str:
     return f'<ol class="js-stepper">{"".join(items)}</ol>'
 
 
-def _loading_html(text: str) -> str:
-    """Centered spinner with a message."""
-    return f'<div class="js-empty"><div class="js-empty-icon"><span class="js-spin"></span></div><div>{escape(text)}</div></div>'
+def _loading_html(text: str, subtitle: str = "") -> str:
+    """Rich animated processing card with progress radar and informative details."""
+    sub = f'<p class="js-loading-sub">{escape(subtitle)}</p>' if subtitle else ""
+    return (
+        '<div class="js-loading-card">'
+        '  <div class="js-loading-radar"></div>'
+        f'  <h3 class="js-loading-title">{escape(text)}</h3>'
+        f"  {sub}"
+        '  <div class="js-loading-pulse-bar"></div>'
+        "</div>"
+    )
 
 
 def _chips(items: list[str], kind: str, limit: int) -> str:
@@ -420,10 +480,15 @@ def _job_card(ranked: RankedJob, index: int) -> str:
 
 def _results_html(result: RunResult) -> str:
     """Render the ranked jobs as cards, or an empty state."""
+    if result.failed:
+        return (
+            '<div class="js-empty"><div class="js-empty-icon">⚠️</div>'
+            f"<div>Falha na busca de vagas: {escape(result.error_message)}</div></div>"
+        )
     if not result.ranked_jobs:
         return (
             '<div class="js-empty"><div class="js-empty-icon">🔍</div>'
-            "<div>Nenhuma vaga correspondente encontrada. Tente um currículo com mais detalhes ou tente mais tarde.</div></div>"
+            "<div>Nenhuma vaga correspondente encontrada. Tente adicionar mais localidades ou reenviar seu currículo.</div></div>"
         )
     cards = "".join(_job_card(r, i) for i, r in enumerate(result.ranked_jobs))
     return f'<div class="js-jobs">{cards}</div>'
@@ -660,15 +725,13 @@ def on_add_location(new_location: str, choices: list[str], selection: list[str],
     return choices, gr.update(choices=choices, value=selection), ""
 
 
-def _on_load(thread_id: str):
-    """Register the wizard thread with the voice bridge and restore a saved candidate.
+def _on_load(thread_id: str) -> tuple[dict, dict, str, str, Profile | None, list[str], dict]:
+    """Restore candidate state on page load, if one was saved.
 
     With a stored candidate the app opens on step 2 — profile shown, chooser
     restored, Find jobs ready, Jobvis pre-seeded — and no LLM call happens
     (the extraction was paid for when the CV was first uploaded). Jobs are NOT
     restored: results go stale, so every session fetches fresh.
-    Outputs: (page_start, page_profile, profile_html, cv_text_state,
-    profile_state, loc_choices_state, loc_group).
     """
     voice_bridge.get_bridge().register_thread(thread_id)
     stored = candidate_store.load_candidate()
@@ -713,20 +776,35 @@ def on_upload(file_path: str | None, thread_id: str):
         yield (*stay, gr.update(), "", _status(f"Não foi possível ler o PDF: {exc}", error=True), None, no, no)
         return
 
-    yield (*go, _loading_html("Lendo seu currículo…"), cv_text, "", gr.update(), no, no)
     try:
-        profile = extract_profile(cv_text, thread_id=thread_id, tags=["phase-2", "ui", "extract"])
-    except Exception as exc:  # noqa: BLE001 - show a friendly error and return to start
-        msg = f"Não foi possível extrair o perfil: {exc}"
-        if "api_key" in str(exc).lower() or "credentials" in str(exc).lower():
-            msg += " Adicione uma chave de LLM no arquivo .env (OPENAI_API_KEY, ou configure SCOUT_MODEL via groq:/ollama:)."
-        yield (*stay, gr.update(), "", _status(msg, error=True), None, no, no)
+        yield (
+            *go,
+            _loading_html(
+                "Processando seu currículo…",
+                "Extraindo texto, senioridade, competências e histórico profissional com IA.",
+            ),
+            cv_text,
+            "",
+            gr.update(),
+            no,
+            no,
+        )
+        try:
+            profile = extract_profile(cv_text, thread_id=thread_id, tags=["phase-2", "ui", "extract"])
+        except Exception as exc:  # noqa: BLE001 - show a friendly error and return to start
+            msg = f"Não foi possível extrair o perfil: {exc}"
+            if "api_key" in str(exc).lower() or "credentials" in str(exc).lower():
+                msg += " Adicione uma chave de LLM no arquivo .env (NVIDIA_API_KEY ou OPENAI_API_KEY)."
+            yield (*stay, gr.update(), "", _status(msg, error=True), None, no, no)
+            return
+        choices, selected = _preference_selection(profile, None)
+        voice_bridge.get_bridge().record_profile(profile, cv_text, thread_id)
+        candidate_store.save_candidate(profile, cv_text, _selection_to_prefs(selected))
+        candidate_name = profile.name or "o candidato"
+        _voice_context(f"Screen event: the user just uploaded a CV; a profile was extracted for {candidate_name}.")
+        yield (*go, _profile_html(profile), cv_text, "", profile, choices, gr.update(choices=choices, value=selected))
+    except GeneratorExit:
         return
-    choices, selected = _preference_selection(profile, None)
-    voice_bridge.get_bridge().record_profile(profile, cv_text, thread_id)
-    candidate_store.save_candidate(profile, cv_text, _selection_to_prefs(selected))
-    _voice_context(f"Screen event: the user just uploaded a CV; a profile was extracted for {profile.name or 'the candidate'}.")
-    yield (*go, _profile_html(profile), cv_text, "", profile, choices, gr.update(choices=choices, value=selected))
 
 
 def on_find(cv_text: str, profile: Profile | None, thread_id: str, loc_selection: list[str]):
@@ -739,27 +817,50 @@ def on_find(cv_text: str, profile: Profile | None, thread_id: str, loc_selection
     """
     go = gr.update(visible=False), gr.update(visible=True)
     if profile is None:
-        yield (gr.update(visible=True), gr.update(visible=False), gr.update(), "", gr.update())
-        return
+        stored = candidate_store.load_candidate()
+        if stored:
+            profile = stored.profile
+            cv_text = cv_text or stored.cv_text
+        else:
+            gr.Warning("Nenhum perfil encontrado. Por favor, envie seu currículo na etapa 1.")
+            yield (gr.update(visible=True), gr.update(visible=False), gr.update(), "", gr.update())
+            return
 
     prefs = _selection_to_prefs(loc_selection or [])
     effective = candidate_store.effective_profile(profile, prefs)
     voice_bridge.get_bridge().record_profile(effective, cv_text, thread_id)
     candidate_store.save_candidate(profile, cv_text, prefs)
 
-    yield (*go, _loading_html("Buscando vagas…"), "", gr.update())
-    result = RunResult()
-    for kind, payload in stream_search(effective, cv_text=cv_text, thread_id=thread_id, tags=["phase-2", "ui"]):
-        if kind == "status":
-            yield (*go, _loading_html(str(payload)), "", gr.update())
-        elif kind == "result":
-            result = payload  # type: ignore[assignment]
+    try:
+        yield (
+            *go,
+            _loading_html(
+                "Buscando vagas compatíveis…",
+                "Pesquisando oportunidades em portais de emprego e calculando aderência com IA.",
+            ),
+            "",
+            gr.update(),
+        )
+        result = RunResult()
+        for kind, payload in stream_search(effective, cv_text=cv_text, thread_id=thread_id, tags=["phase-2", "ui"]):
+            if kind == "status":
+                yield (
+                    *go,
+                    _loading_html(str(payload), "Aguarde enquanto as vagas são filtradas e ranqueadas com IA."),
+                    "",
+                    gr.update(),
+                )
+            elif kind == "result":
+                result = payload  # type: ignore[assignment]
 
-    choices = [(f"{r.job.title} — {r.job.company} (fit {r.fit_score})", r.job.job_id) for r in result.ranked_jobs]
-    select = gr.update(choices=choices, value=None, visible=bool(choices))
-    voice_bridge.get_bridge().record_step("results")
-    _voice_context(f"Screen event: an on-screen job search just finished — {len(result.ranked_jobs)} ranked jobs are visible.")
-    yield (*go, _results_html(result), _footer_html(result), select)
+        choices = [(f"{r.job.title} — {r.job.company} (fit {r.fit_score})", r.job.job_id) for r in result.ranked_jobs]
+        select = gr.update(choices=choices, value=None, visible=bool(choices))
+        voice_bridge.get_bridge().record_step("results")
+        n_jobs = len(result.ranked_jobs)
+        _voice_context(f"Screen event: an on-screen job search just finished — {n_jobs} ranked jobs are visible.")
+        yield (*go, _results_html(result), _footer_html(result), select)
+    except GeneratorExit:
+        return
 
 
 def on_zip(zip_path: str | None) -> str | None:
@@ -783,24 +884,47 @@ def on_tailor(selected_job_id: str | None, thread_id: str, linkedin_zip: str | N
         yield (*stay, gr.update(), gr.update(), hidden, hidden)
         return
 
-    yield (*go, _loading_html("Elaborando a candidatura…"), "", hidden, hidden)
-    result = TailorResult()
-    stream = stream_tailor(
-        thread_id=thread_id,
-        selected_job_id=selected_job_id,
-        tags=["phase-2", "ui", "tailor"],
-        linkedin_zip_path=linkedin_zip,
-    )
-    for kind, payload in stream:
-        if kind == "status":
-            yield (*go, _loading_html(str(payload)), "", hidden, hidden)
-        elif kind == "result":
-            result = payload  # type: ignore[assignment]
+    if profile is None:
+        stored = candidate_store.load_candidate()
+        if stored:
+            profile = stored.profile
 
-    pdf_btn, tex_btn, footer = _pack_downloads(result, profile)
-    voice_bridge.get_bridge().record_step("tailor")
-    _voice_context("Screen event: an application pack was just tailored via the on-screen button and is now visible.")
-    yield (*go, _pack_html(result), footer, pdf_btn, tex_btn)
+    try:
+        yield (
+            *go,
+            _loading_html(
+                "Customizando candidatura…",
+                "Elaborando currículo sob medida, carta de apresentação e validando contra alucinações.",
+            ),
+            "",
+            hidden,
+            hidden,
+        )
+        result = TailorResult()
+        stream = stream_tailor(
+            thread_id=thread_id,
+            selected_job_id=selected_job_id,
+            tags=["phase-2", "ui", "tailor"],
+            linkedin_zip_path=linkedin_zip,
+        )
+        for kind, payload in stream:
+            if kind == "status":
+                yield (
+                    *go,
+                    _loading_html(str(payload), "Validação anti-alucinação em andamento."),
+                    "",
+                    hidden,
+                    hidden,
+                )
+            elif kind == "result":
+                result = payload  # type: ignore[assignment]
+
+        pdf_btn, tex_btn, footer = _pack_downloads(result, profile)
+        voice_bridge.get_bridge().record_step("tailor")
+        _voice_context("Screen event: an application pack was just tailored via the on-screen button and is now visible.")
+        yield (*go, _pack_html(result), footer, pdf_btn, tex_btn)
+    except GeneratorExit:
+        return
 
 
 def reset():
@@ -856,20 +980,22 @@ def build_app() -> gr.Blocks:
             f'<div><span class="js-tag">{CAPTION}</span></div></div>'
         )
 
-        # voice_ok, voice_hint = is_voice_available()
-        # if voice_ok:
-        #     gr.HTML(
-        #         '<div id="jv-strip"><span class="jv-hint">Jobvis, o assistente por voz, roda em seu próprio console.</span>'
-        #         '<a class="jv-link" href="http://localhost:8000" target="_blank" rel="noopener">Conversar com Jobvis ↗</a></div>'
-        #     )
-        # else:
-        #     gr.HTML(f'<p class="jv-hint">{escape(voice_hint)}</p>')
+        voice_ok, voice_hint = is_voice_available()
+        if voice_ok:
+            gr.HTML(
+                '<div id="jv-strip"><span class="jv-hint">Jobvis, o assistente por voz, roda em seu próprio console.</span>'
+                '<a class="jv-link" href="http://localhost:8000" target="_blank" '
+                'rel="noopener">Conversar com Jobvis ↗</a></div>'
+            )
+        else:
+            gr.HTML(f'<p class="jv-hint">{escape(voice_hint)}</p>')
 
         with gr.Group(visible=True, elem_classes=["js-page"]) as page_start:
             gr.HTML(_stepper(1))
             gr.HTML(INTRO_HTML)
             cv_file = gr.File(label="", file_types=[".pdf"], type="filepath", height=150, elem_classes=["js-drop"])
             start_status = gr.HTML('<div class="js-status"></div>')
+            gr.HTML('<div class="js-bottom-spacer"></div>')
 
         with gr.Group(visible=False, elem_classes=["js-page"]) as page_profile:
             gr.HTML(_stepper(2))
@@ -893,6 +1019,7 @@ def build_app() -> gr.Blocks:
                 )
                 linkedin_file = gr.File(label="", file_types=[".zip"], type="filepath", height=90)
             change_btn = gr.Button("Enviar outro currículo", variant="secondary")
+            gr.HTML('<div class="js-bottom-spacer"></div>')
 
         with gr.Group(visible=False, elem_classes=["js-page"]) as page_results:
             gr.HTML(_stepper(3))
@@ -903,6 +1030,7 @@ def build_app() -> gr.Blocks:
             job_select = gr.Dropdown(label="", choices=[], value=None, visible=False, interactive=True)
             tailor_btn = gr.Button("Customizar candidatura", variant="primary")
             restart_btn = gr.Button("Recomeçar", variant="secondary")
+            gr.HTML('<div class="js-bottom-spacer"></div>')
 
         with gr.Group(visible=False, elem_classes=["js-page"]) as page_tailor:
             gr.HTML(_stepper(4))
@@ -914,6 +1042,7 @@ def build_app() -> gr.Blocks:
             tailor_footer = gr.HTML()
             back_btn = gr.Button("Voltar às vagas", variant="secondary")
             restart_btn2 = gr.Button("Recomeçar", variant="secondary")
+            gr.HTML('<div class="js-bottom-spacer"></div>')
 
         loc_choices_state = gr.State([])
         cv_file.upload(
@@ -980,26 +1109,26 @@ def build_app() -> gr.Blocks:
         restart_btn.click(reset, outputs=reset_outputs)
         restart_btn2.click(reset, outputs=reset_outputs)
 
-        # if voice_ok:
-        #     # A run started by voice in the console still has to land on these
-        #     # pages. The Timer must sit at Blocks ROOT level: one created inside
-        #     # a layout container can miss the client render tree, and its null
-        #     # instance kills the frontend at dispatch_load_events (Gradio 6.20).
-        #     gr.Timer(1.0).tick(
-        #         on_run_tick,
-        #         outputs=[
-        #             page_profile,
-        #             page_results,
-        #             page_tailor,
-        #             results_out,
-        #             footer_out,
-        #             job_select,
-        #             tailor_out,
-        #             tailor_footer,
-        #             pdf_btn,
-        #             tex_btn,
-        #         ],
-        #     )
+        if voice_ok:
+            # A run started by voice in the console still has to land on these
+            # pages. The Timer must sit at Blocks ROOT level: one created inside
+            # a layout container can miss the client render tree, and its null
+            # instance kills the frontend at dispatch_load_events (Gradio 6.20).
+            gr.Timer(1.0).tick(
+                on_run_tick,
+                outputs=[
+                    page_profile,
+                    page_results,
+                    page_tailor,
+                    results_out,
+                    footer_out,
+                    job_select,
+                    tailor_out,
+                    tailor_footer,
+                    pdf_btn,
+                    tex_btn,
+                ],
+            )
         # Restore on page load. A load event, not a Timer: the client only opens
         # its event connection on the first event, so an unprimed timer never
         # fires.
@@ -1022,11 +1151,15 @@ def main() -> None:
     reports an empty checkpoint. The API goes on a daemon thread first; Gradio
     keeps the main thread, as it prefers to.
     """
+    import os
+
     from job_scout.api import CONSOLE_PORT, serve_in_thread
 
     serve_in_thread()
     print(f"Jobvis console: http://localhost:{CONSOLE_PORT}")
-    build_app().launch(server_name="192.168.0.14", server_port=7860, theme=THEME, css=CSS)
+    server_name = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")  # noqa: S104
+    server_port = int(os.environ.get("GRADIO_SERVER_PORT", "7860"))
+    build_app().launch(server_name=server_name, server_port=server_port, theme=THEME, css=CSS)
 
 
 if __name__ == "__main__":

@@ -26,11 +26,11 @@ _PRICES_PER_MTOK: dict[str, tuple[float, float]] = {
 }
 
 _NODE_STATUS = {
-    "fetch_jobs": "searching jobs…",
-    "rank_jobs": "ranking jobs…",
-    "reformulate_query": "broadening the search…",
-    "tailor": "drafting the application…",
-    "validate_tailoring": "checking every claim against your CV…",
+    "fetch_jobs": "Buscando vagas em fontes de emprego…",
+    "rank_jobs": "Avaliando aderência das vagas com IA…",
+    "reformulate_query": "Ampliando critérios de busca…",
+    "tailor": "Elaborando currículo customizado…",
+    "validate_tailoring": "Validando cada afirmação contra o currículo…",
 }
 
 
@@ -103,6 +103,8 @@ def stream_search(
         result.n_jobs_fetched = len(final.get("jobs", []))
         result.n_jobs_ranked = len(result.ranked_jobs)
         result.errors = final.get("errors", [])
+    except GeneratorExit:
+        return
     except Exception as exc:  # noqa: BLE001 - report as a failed run, keep the trace
         result.failed = True
         result.error_message = f"{type(exc).__name__}: {exc}"
@@ -170,6 +172,8 @@ def stream_tailor(
         result.fabrication_report = final.get("fabrication_report")
         result.research_used = bool(final.get("research_notes"))
         result.errors = final.get("errors", [])
+    except GeneratorExit:
+        return
     except Exception as exc:  # noqa: BLE001 - report as a failed run, keep the trace
         result.failed = True
         result.error_message = f"{type(exc).__name__}: {exc}"
@@ -186,9 +190,11 @@ def _status_line(node_name: str, update: dict) -> str:
     """Human-readable progress line for a completed node."""
     if node_name == "fetch_jobs":
         attempt = update.get("reformulation_count", 0) + 1
-        return f"searching jobs (attempt {attempt})… {len(update.get('jobs', []))} found"
+        n = len(update.get("jobs", []))
+        return f"Buscando vagas (tentativa {attempt})… {n} {'vaga encontrada' if n == 1 else 'vagas encontradas'}"
     if node_name == "rank_jobs":
-        return f"ranking {len(update.get('ranked_jobs', []))} jobs…"
+        n = len(update.get("ranked_jobs", []))
+        return f"Avaliando aderência de {n} {'vaga' if n == 1 else 'vagas'} com IA…"
     return _NODE_STATUS.get(node_name, f"{node_name}…")
 
 
