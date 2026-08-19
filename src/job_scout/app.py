@@ -34,15 +34,15 @@ from job_scout.tracing import opik_url, register_prompts
 from job_scout.voice import bridge as voice_bridge
 from job_scout.voice import is_voice_available
 
-CAPTION = "Prepares applications — never submits them."
+CAPTION = "Prepara candidaturas — nunca as envia automaticamente."
 
 INTRO_HTML = """
-<p class="js-lead">Drop your resume and let Job Scout find roles that actually match it —
-ranked by fit, with the gaps shown honestly.</p>
+<p class="js-lead">Envie seu currículo e deixe o Pesquisa Vagas encontrar vagas que realmente combinam com você —
+classificadas por compatibilidade, com as lacunas mostradas com transparência.</p>
 <ol class="js-steps">
-  <li><span class="js-num">1</span><div><b>Drop your resume</b> (PDF) below.</div></li>
-  <li><span class="js-num">2</span><div>We <b>read it</b> and show your skills, experience, and locations.</div></li>
-  <li><span class="js-num">3</span><div>Hit <b>Find jobs</b> to get openings ranked by fit.</div></li>
+  <li><span class="js-num">1</span><div><b>Envie seu currículo</b> (PDF) abaixo.</div></li>
+  <li><span class="js-num">2</span><div>Nós <b>lemos o arquivo</b> e exibimos suas habilidades e localidades.</div></li>
+  <li><span class="js-num">3</span><div>Clique em <b>Buscar vagas</b> para ver vagas ordenadas por aderência.</div></li>
 </ol>
 """
 
@@ -313,7 +313,7 @@ _MARK = (
 
 def _stepper(active: int) -> str:
     """Render the 4-step progress indicator with ``active`` (1-4) highlighted."""
-    labels = ("Resume", "Profile", "Jobs", "Tailor")
+    labels = ("Currículo", "Perfil", "Vagas", "Customização")
     items = []
     for i, label in enumerate(labels, 1):
         state = "done" if i < active else "active" if i == active else "todo"
@@ -338,26 +338,37 @@ def _chips(items: list[str], kind: str, limit: int) -> str:
     return f'<div class="js-chips">{shown}</div>' if shown else ""
 
 
+_SENIORITY_PT = {
+    "junior": "Júnior",
+    "mid": "Pleno",
+    "senior": "Sênior",
+    "lead": "Líder / Especialista",
+    "unknown": "Não especificado",
+}
+
+
 def _profile_html(profile: Profile | None) -> str:
     """Render the extracted profile as a card."""
     if profile is None:
-        return '<div class="js-card js-muted">Could not read a profile from that resume.</div>'
+        return '<div class="js-card js-muted">Não foi possível extrair um perfil deste currículo.</div>'
     skills = "".join(f'<span class="js-pill">{escape(s)}</span>' for s in profile.skills) or "—"
     years = f"{profile.years_experience:g}" if profile.years_experience else "—"
     languages = escape(", ".join(profile.languages) or "—")
+    seniority_str = _SENIORITY_PT.get(profile.seniority.lower(), profile.seniority.title())
     return (
         '<div class="js-card">'
-        f'<p class="js-profile-name">{escape(profile.name or "Candidate")}</p>'
-        f'<p class="js-profile-sub">{escape(profile.seniority.title())} · '
+        f'<p class="js-profile-name">{escape(profile.name or "Candidato")}</p>'
+        f'<p class="js-profile-sub">{escape(seniority_str)} · '
         f"{escape(', '.join(profile.primary_roles) or '—')}</p>"
         '<div class="js-profile-grid">'
-        f'<div class="js-stat"><div class="js-stat-val">{years}</div><div class="js-stat-key">Years exp</div></div>'
-        f'<div class="js-stat"><div class="js-stat-val">{"Yes" if profile.remote_ok else "No"}</div>'
-        '<div class="js-stat-key">Remote</div></div>'
-        f'<div class="js-stat"><div class="js-stat-val">{len(profile.skills)}</div><div class="js-stat-key">Skills</div></div>'
+        f'<div class="js-stat"><div class="js-stat-val">{years}</div><div class="js-stat-key">Anos de exp.</div></div>'
+        f'<div class="js-stat"><div class="js-stat-val">{"Sim" if profile.remote_ok else "Não"}</div>'
+        '<div class="js-stat-key">Remoto</div></div>'
+        f'<div class="js-stat"><div class="js-stat-val">{len(profile.skills)}</div>'
+        '<div class="js-stat-key">Habilidades</div></div>'
         "</div>"
-        f'<p class="js-profile-row"><b>Locations</b> &nbsp;{escape(", ".join(profile.locations) or "—")}</p>'
-        f'<p class="js-profile-row"><b>Languages</b> &nbsp;{languages}</p>'
+        f'<p class="js-profile-row"><b>Localidades</b> &nbsp;{escape(", ".join(profile.locations) or "—")}</p>'
+        f'<p class="js-profile-row"><b>Idiomas</b> &nbsp;{languages}</p>'
         f'<div style="margin-top:12px">{skills}</div>'
         "</div>"
     )
@@ -376,7 +387,7 @@ def _fit_ring(score: int) -> str:
     """Render the fit score as a conic-gradient gauge."""
     return (
         f'<div class="js-fit-ring {_fit_class(score)}" style="--val:{score}" '
-        f'role="img" aria-label="Fit score {score} out of 100">'
+        f'role="img" aria-label="Pontuação de aderência {score} de 100">'
         f'<span class="js-fit-num">{score}</span></div>'
     )
 
@@ -389,7 +400,7 @@ def _job_card(ranked: RankedJob, index: int) -> str:
         title_html = f'<a class="js-job-title" href="{escape(job.url)}" target="_blank" rel="noopener">{title}</a>'
     else:
         title_html = f'<span class="js-job-title">{title}</span>'
-    remote = '<span class="js-remote">Remote</span>' if job.remote else ""
+    remote = '<span class="js-remote">Remoto</span>' if job.remote else ""
     source = f'<span class="js-source">{escape(job.source)}</span>'
     matched = _chips(ranked.matched_skills, "match", 6)
     gaps = _chips(ranked.gaps, "gap", 4)
@@ -412,7 +423,7 @@ def _results_html(result: RunResult) -> str:
     if not result.ranked_jobs:
         return (
             '<div class="js-empty"><div class="js-empty-icon">🔍</div>'
-            "<div>No matching jobs found. Try a resume with more detail, or check back later.</div></div>"
+            "<div>Nenhuma vaga correspondente encontrada. Tente um currículo com mais detalhes ou tente mais tarde.</div></div>"
         )
     cards = "".join(_job_card(r, i) for i, r in enumerate(result.ranked_jobs))
     return f'<div class="js-jobs">{cards}</div>'
@@ -420,16 +431,16 @@ def _results_html(result: RunResult) -> str:
 
 def _footer_html(result: RunResult) -> str:
     """Render the run footer: cost, latency, job source, and the Opik link."""
-    link = f'<a href="{result.opik_url or opik_url()}" target="_blank" rel="noopener">view traces in Opik ↗</a>'
+    link = f'<a href="{result.opik_url or opik_url()}" target="_blank" rel="noopener">ver rastreamento no Opik ↗</a>'
     if result.failed:
-        body = f"⚠ run failed — {escape(result.error_message)}. The trace has details · {link}"
+        body = f"⚠ falha na execução — {escape(result.error_message)}. O rastreamento possui detalhes · {link}"
     else:
-        sources = escape(", ".join(result.jobs_sources) or "none")
+        sources = escape(", ".join(result.jobs_sources) or "nenhuma")
         sep = ' <span class="js-muted">·</span> '
         body = (
             f'<span class="js-meta-mono">${result.cost_usd:.4f}</span>{sep}'
             f'<span class="js-meta-mono">{result.latency_s}s</span>{sep}'
-            f"source: {sources}{sep}{link}"
+            f"fonte: {sources}{sep}{link}"
         )
     return f'<div class="js-footer">{body}</div>'
 
@@ -458,7 +469,7 @@ def _cv_preview_html(pack) -> str:
 def _fabrication_html(result: TailorResult) -> str:
     """Render the validator verdict — never hidden, whatever it says."""
     if result.fabrication_flags == 0:
-        return '<div class="js-fab-ok">✓ Every claim in this application traced back to your CV.</div>'
+        return '<div class="js-fab-ok">✓ Todas as informações desta candidatura foram comprovadas no seu currículo.</div>'
     report = result.fabrication_report
     items = ""
     if report:
@@ -466,27 +477,33 @@ def _fabrication_html(result: TailorResult) -> str:
             f"<li>“{escape(f.text[:140])}”<br><span class='js-fab-reason'>{escape(f.reason)}</span></li>" for f in report.flagged
         )
     n = result.fabrication_flags
+    plural_s = "ões" if n != 1 else "ão"
+    plural_v = "m" if n != 1 else ""
+    plural_adj = "s" if n != 1 else ""
     return (
-        f'<div class="js-fab-warn"><b>⚠ {n} statement{"s" if n != 1 else ""} could not be verified against your CV.</b>'
-        f" Review before sending.<ul>{items}</ul></div>"
+        f'<div class="js-fab-warn"><b>⚠ {n} afirmaç{plural_s} não pôde{plural_v} ser verificada{plural_adj} no seu currículo.</b>'
+        f" Revise antes de enviar.<ul>{items}</ul></div>"
     )
 
 
 def _pack_html(result: TailorResult) -> str:
     """Render the application pack: cover letter, tailored CV, honesty note."""
     if result.pack is None:
-        why = escape("; ".join(result.errors) or result.error_message or "unknown error")
-        return f'<div class="js-empty"><div class="js-empty-icon">⚠</div><div>Could not tailor this job: {why}</div></div>'
+        why = escape("; ".join(result.errors) or result.error_message or "erro desconhecido")
+        return (
+            '<div class="js-empty"><div class="js-empty-icon">⚠</div>'
+            f"<div>Não foi possível customizar para esta vaga: {why}</div></div>"
+        )
     pack = result.pack
     honesty = ""
     if pack.honesty_note:
-        honesty = f'<div class="js-honesty"><b>Honesty note</b> — {escape(pack.honesty_note)}</div>'
+        honesty = f'<div class="js-honesty"><b>Nota de transparência</b> — {escape(pack.honesty_note)}</div>'
     return (
         '<div class="js-pack">'
         f"{_fabrication_html(result)}"
-        '<p class="js-section-label">Cover letter</p>'
+        '<p class="js-section-label">Carta de apresentação</p>'
         f'<div class="js-card js-letter">{escape(pack.cover_letter)}</div>'
-        '<p class="js-section-label">Tailored CV</p>'
+        '<p class="js-section-label">Currículo customizado</p>'
         f"{_cv_preview_html(pack)}"
         f"{honesty}"
         "</div>"
@@ -495,12 +512,12 @@ def _pack_html(result: TailorResult) -> str:
 
 def _tailor_footer_html(result: TailorResult) -> str:
     """Run footer for the tailor step: cost, latency, research flag, Opik link."""
-    link = f'<a href="{result.opik_url or opik_url()}" target="_blank" rel="noopener">view traces in Opik ↗</a>'
+    link = f'<a href="{result.opik_url or opik_url()}" target="_blank" rel="noopener">ver rastreamento no Opik ↗</a>'
     if result.failed:
-        body = f"⚠ run failed — {escape(result.error_message)}. The trace has details · {link}"
+        body = f"⚠ falha na execução — {escape(result.error_message)}. O rastreamento possui detalhes · {link}"
     else:
         sep = ' <span class="js-muted">·</span> '
-        research = "with company research" if result.research_used else "no company research"
+        research = "com pesquisa da empresa" if result.research_used else "sem pesquisa da empresa"
         body = (
             f'<span class="js-meta-mono">${result.cost_usd:.4f}</span>{sep}'
             f'<span class="js-meta-mono">{result.latency_s}s</span>{sep}'
@@ -521,7 +538,7 @@ def _pack_downloads(result: TailorResult, profile: Profile | None) -> tuple[dict
     footer = _tailor_footer_html(result)
     pdf_btn, tex_btn = hidden, hidden
     if result.pack is not None:
-        name = (profile.name if profile else None) or "Candidate"
+        name = (profile.name if profile else None) or "Candidato"
         render = render_pdf(result.pack.cv, name, Path(tempfile.mkdtemp(prefix="job_scout_render_")))
         tex_btn = gr.update(value=str(render.tex_path), visible=True)
         if render.pdf_path is not None:
@@ -552,7 +569,7 @@ def on_run_tick():
     if run is None:
         progress = bridge.run_status()
         if progress.get("running"):
-            loading = _loading_html(str(progress.get("latest_status") or "working…"))
+            loading = _loading_html(str(progress.get("latest_status") or "processando…"))
             if progress.get("kind") == "search":
                 show_results = (gr.update(visible=False), gr.update(visible=True), gr.update(visible=False))
                 return (*show_results, loading, "", no, no, no, no, no)
@@ -601,7 +618,7 @@ def on_run_tick():
     return (no,) * 10
 
 
-REMOTE_CHOICE = "Remote (anywhere)"
+REMOTE_CHOICE = "Remoto (qualquer lugar)"
 
 
 def _selection_to_prefs(selection: list[str]) -> dict:
@@ -662,7 +679,7 @@ def _on_load(thread_id: str):
     voice_bridge.get_bridge().record_profile(effective, stored.cv_text, thread_id)
     note = (
         '<p class="js-muted" style="text-align:center;font-size:0.8rem;margin-top:10px">'
-        "Restored from your last session — “Start over” forgets it.</p>"
+        "Restaurado da sua última sessão — clique em “Recomeçar” para limpar.</p>"
     )
     return (
         gr.update(visible=False),
@@ -688,21 +705,21 @@ def on_upload(file_path: str | None, thread_id: str):
     no = gr.update()
 
     if not file_path:
-        yield (*stay, gr.update(), "", _status("Please drop a PDF resume.", error=True), None, no, no)
+        yield (*stay, gr.update(), "", _status("Por favor, envie um currículo em formato PDF.", error=True), None, no, no)
         return
     try:
         cv_text = extract_cv_text(file_path)
     except CVReadError as exc:
-        yield (*stay, gr.update(), "", _status(f"Could not read that PDF: {exc}", error=True), None, no, no)
+        yield (*stay, gr.update(), "", _status(f"Não foi possível ler o PDF: {exc}", error=True), None, no, no)
         return
 
-    yield (*go, _loading_html("Reading your resume…"), cv_text, "", gr.update(), no, no)
+    yield (*go, _loading_html("Lendo seu currículo…"), cv_text, "", gr.update(), no, no)
     try:
         profile = extract_profile(cv_text, thread_id=thread_id, tags=["phase-2", "ui", "extract"])
     except Exception as exc:  # noqa: BLE001 - show a friendly error and return to start
-        msg = f"Couldn't read a profile: {exc}"
+        msg = f"Não foi possível extrair o perfil: {exc}"
         if "api_key" in str(exc).lower() or "credentials" in str(exc).lower():
-            msg += " Add an LLM key to .env (OPENAI_API_KEY, or a free SCOUT_MODEL via groq:/ollama:)."
+            msg += " Adicione uma chave de LLM no arquivo .env (OPENAI_API_KEY, ou configure SCOUT_MODEL via groq:/ollama:)."
         yield (*stay, gr.update(), "", _status(msg, error=True), None, no, no)
         return
     choices, selected = _preference_selection(profile, None)
@@ -730,7 +747,7 @@ def on_find(cv_text: str, profile: Profile | None, thread_id: str, loc_selection
     voice_bridge.get_bridge().record_profile(effective, cv_text, thread_id)
     candidate_store.save_candidate(profile, cv_text, prefs)
 
-    yield (*go, _loading_html("Searching for jobs…"), "", gr.update())
+    yield (*go, _loading_html("Buscando vagas…"), "", gr.update())
     result = RunResult()
     for kind, payload in stream_search(effective, cv_text=cv_text, thread_id=thread_id, tags=["phase-2", "ui"]):
         if kind == "status":
@@ -762,11 +779,11 @@ def on_tailor(selected_job_id: str | None, thread_id: str, linkedin_zip: str | N
     go = gr.update(visible=False), gr.update(visible=True)
     hidden = gr.update(visible=False)
     if not selected_job_id:
-        gr.Warning("Pick a job from the dropdown first.")
+        gr.Warning("Selecione uma vaga no menu primeiro.")
         yield (*stay, gr.update(), gr.update(), hidden, hidden)
         return
 
-    yield (*go, _loading_html("Drafting the application…"), "", hidden, hidden)
+    yield (*go, _loading_html("Elaborando a candidatura…"), "", hidden, hidden)
     result = TailorResult()
     stream = stream_tailor(
         thread_id=thread_id,
@@ -828,22 +845,22 @@ def build_app() -> gr.Blocks:
     """Build the four-step wizard app."""
     register_prompts()
 
-    with gr.Blocks(title="Job Scout") as demo:
+    with gr.Blocks(title="Pesquisa Vagas") as demo:
         thread_id = gr.State(lambda: str(uuid4()))
         cv_text_state = gr.State("")
         profile_state = gr.State(None)
         linkedin_zip_state = gr.State(None)
 
         gr.HTML(
-            f'<div id="js-header"><div class="js-mark">{_MARK}<h1>Job Scout</h1></div>'
+            f'<div id="js-header"><div class="js-mark">{_MARK}<h1>Pesquisa Vagas</h1></div>'
             f'<div><span class="js-tag">{CAPTION}</span></div></div>'
         )
 
         voice_ok, voice_hint = is_voice_available()
         if voice_ok:
             gr.HTML(
-                '<div id="jv-strip"><span class="jv-hint">Jobvis, the voice concierge, runs in its own console.</span>'
-                '<a class="jv-link" href="http://localhost:8000" target="_blank" rel="noopener">Talk to Jobvis ↗</a></div>'
+                '<div id="jv-strip"><span class="jv-hint">Jobvis, o assistente por voz, roda em seu próprio console.</span>'
+                '<a class="jv-link" href="http://localhost:8000" target="_blank" rel="noopener">Conversar com Jobvis ↗</a></div>'
             )
         else:
             gr.HTML(f'<p class="jv-hint">{escape(voice_hint)}</p>')
@@ -856,47 +873,47 @@ def build_app() -> gr.Blocks:
 
         with gr.Group(visible=False, elem_classes=["js-page"]) as page_profile:
             gr.HTML(_stepper(2))
-            gr.HTML('<p class="js-section-label">Your profile</p>')
+            gr.HTML('<p class="js-section-label">Seu perfil</p>')
             profile_out = gr.HTML()
-            gr.HTML('<p class="js-section-label" style="margin-top:14px">Where should we search?</p>')
+            gr.HTML('<p class="js-section-label" style="margin-top:14px">Onde devemos buscar?</p>')
             gr.HTML(
-                '<p class="js-muted" style="font-size:0.86rem">The boxes come from your resume — a suggestion, '
-                "not a decision. Tick where you actually want to work; add anywhere we missed.</p>"
+                '<p class="js-muted" style="font-size:0.86rem">As opções vêm do seu currículo — uma sugestão, '
+                "não uma decisão final. Marque onde você realmente quer trabalhar e adicione localidades que faltarem.</p>"
             )
             loc_group = gr.CheckboxGroup(label="", show_label=False, choices=[], value=[], interactive=True)
             with gr.Row():
-                loc_new = gr.Textbox(label="", show_label=False, placeholder="Add another location…", scale=4)
-                loc_add = gr.Button("Add", size="sm", scale=0)
-            find_btn = gr.Button("Find jobs", variant="primary", size="lg")
-            with gr.Accordion("Add your LinkedIn export (optional)", open=False):
+                loc_new = gr.Textbox(label="", show_label=False, placeholder="Adicionar outra localidade…", scale=4)
+                loc_add = gr.Button("Adicionar", size="sm", scale=0)
+            find_btn = gr.Button("Buscar vagas", variant="primary", size="lg")
+            with gr.Accordion("Adicionar exportação do LinkedIn (opcional)", open=False):
                 gr.HTML(
-                    '<p class="js-muted" style="font-size:0.86rem">Used only to enrich the tailoring step. '
-                    "LinkedIn → Settings → “Get a copy of your data”. The ZIP stays on your machine and is "
-                    "never attached to traces.</p>"
+                    '<p class="js-muted" style="font-size:0.86rem">Usado apenas para enriquecer a etapa de customização. '
+                    "LinkedIn → Configurações → “Obter uma cópia dos seus dados”. O arquivo ZIP permanece no seu computador "
+                    "e nunca é anexado aos rastreamentos.</p>"
                 )
                 linkedin_file = gr.File(label="", file_types=[".zip"], type="filepath", height=90)
-            change_btn = gr.Button("Upload a different resume", variant="secondary")
+            change_btn = gr.Button("Enviar outro currículo", variant="secondary")
 
         with gr.Group(visible=False, elem_classes=["js-page"]) as page_results:
             gr.HTML(_stepper(3))
-            gr.HTML('<p class="js-section-label">Ranked jobs</p>')
+            gr.HTML('<p class="js-section-label">Vagas encontradas</p>')
             results_out = gr.HTML()
             footer_out = gr.HTML()
-            gr.HTML('<p class="js-section-label" style="margin-top:14px">Prepare an application</p>')
+            gr.HTML('<p class="js-section-label" style="margin-top:14px">Preparar uma candidatura</p>')
             job_select = gr.Dropdown(label="", choices=[], value=None, visible=False, interactive=True)
-            tailor_btn = gr.Button("Tailor application", variant="primary")
-            restart_btn = gr.Button("Start over", variant="secondary")
+            tailor_btn = gr.Button("Customizar candidatura", variant="primary")
+            restart_btn = gr.Button("Recomeçar", variant="secondary")
 
         with gr.Group(visible=False, elem_classes=["js-page"]) as page_tailor:
             gr.HTML(_stepper(4))
-            gr.HTML('<p class="js-section-label">Application pack</p>')
+            gr.HTML('<p class="js-section-label">Pacote de candidatura</p>')
             tailor_out = gr.HTML()
             with gr.Row():
-                pdf_btn = gr.DownloadButton("Download tailored CV (PDF)", visible=False, variant="primary")
-                tex_btn = gr.DownloadButton("Download .tex", visible=False, variant="secondary")
+                pdf_btn = gr.DownloadButton("Baixar currículo customizado (PDF)", visible=False, variant="primary")
+                tex_btn = gr.DownloadButton("Baixar .tex", visible=False, variant="secondary")
             tailor_footer = gr.HTML()
-            back_btn = gr.Button("Back to jobs", variant="secondary")
-            restart_btn2 = gr.Button("Start over", variant="secondary")
+            back_btn = gr.Button("Voltar às vagas", variant="secondary")
+            restart_btn2 = gr.Button("Recomeçar", variant="secondary")
 
         loc_choices_state = gr.State([])
         cv_file.upload(

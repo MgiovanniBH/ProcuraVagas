@@ -42,8 +42,8 @@ def test_on_tailor_renders_pack_and_honesty_note(monkeypatch, sample_profile):
     final = list(on_tailor("j1", "t1", None, sample_profile))[-1]
     html = final[2]
     assert "Dear team," in html
-    assert "Honesty note" in html
-    assert "traced back to your CV" in html  # zero flags → quiet green line
+    assert "Nota de transparência" in html
+    assert "comprovadas no seu currículo" in html  # zero flags → quiet green line
     # .tex download becomes visible (PDF depends on tectonic availability).
     assert final[5]["visible"] is True
 
@@ -52,7 +52,7 @@ def test_on_tailor_shows_fabrication_warning(monkeypatch, sample_profile):
     result = _tailor_result(flags=2)
     monkeypatch.setattr(app_mod, "stream_tailor", _fake_stream(result))
     final = list(on_tailor("j1", "t1", None, sample_profile))[-1]
-    assert "could not be verified against your CV" in final[2]
+    assert "verificadas no seu currículo" in final[2]
 
 
 def test_on_tailor_without_selection_stays_on_results(monkeypatch, sample_profile):
@@ -66,7 +66,7 @@ def test_on_tailor_renders_graceful_error(monkeypatch, sample_profile):
     result = replace(TailorResult(), errors=["tailor: no search state on this thread — run a job search first"])
     monkeypatch.setattr(app_mod, "stream_tailor", _fake_stream(result))
     final = list(on_tailor("j1", "t1", None, sample_profile))[-1]
-    assert "Could not tailor this job" in final[2]
+    assert "Não foi possível customizar para esta vaga" in final[2]
     assert "run a job search first" in final[2]
 
 
