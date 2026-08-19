@@ -980,26 +980,26 @@ def build_app() -> gr.Blocks:
         restart_btn.click(reset, outputs=reset_outputs)
         restart_btn2.click(reset, outputs=reset_outputs)
 
-        if voice_ok:
-            # A run started by voice in the console still has to land on these
-            # pages. The Timer must sit at Blocks ROOT level: one created inside
-            # a layout container can miss the client render tree, and its null
-            # instance kills the frontend at dispatch_load_events (Gradio 6.20).
-            gr.Timer(1.0).tick(
-                on_run_tick,
-                outputs=[
-                    page_profile,
-                    page_results,
-                    page_tailor,
-                    results_out,
-                    footer_out,
-                    job_select,
-                    tailor_out,
-                    tailor_footer,
-                    pdf_btn,
-                    tex_btn,
-                ],
-            )
+        # if voice_ok:
+        #     # A run started by voice in the console still has to land on these
+        #     # pages. The Timer must sit at Blocks ROOT level: one created inside
+        #     # a layout container can miss the client render tree, and its null
+        #     # instance kills the frontend at dispatch_load_events (Gradio 6.20).
+        #     gr.Timer(1.0).tick(
+        #         on_run_tick,
+        #         outputs=[
+        #             page_profile,
+        #             page_results,
+        #             page_tailor,
+        #             results_out,
+        #             footer_out,
+        #             job_select,
+        #             tailor_out,
+        #             tailor_footer,
+        #             pdf_btn,
+        #             tex_btn,
+        #         ],
+        #     )
         # Restore on page load. A load event, not a Timer: the client only opens
         # its event connection on the first event, so an unprimed timer never
         # fires.
