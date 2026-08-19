@@ -856,14 +856,14 @@ def build_app() -> gr.Blocks:
             f'<div><span class="js-tag">{CAPTION}</span></div></div>'
         )
 
-        voice_ok, voice_hint = is_voice_available()
-        if voice_ok:
-            gr.HTML(
-                '<div id="jv-strip"><span class="jv-hint">Jobvis, o assistente por voz, roda em seu próprio console.</span>'
-                '<a class="jv-link" href="http://localhost:8000" target="_blank" rel="noopener">Conversar com Jobvis ↗</a></div>'
-            )
-        else:
-            gr.HTML(f'<p class="jv-hint">{escape(voice_hint)}</p>')
+        # voice_ok, voice_hint = is_voice_available()
+        # if voice_ok:
+        #     gr.HTML(
+        #         '<div id="jv-strip"><span class="jv-hint">Jobvis, o assistente por voz, roda em seu próprio console.</span>'
+        #         '<a class="jv-link" href="http://localhost:8000" target="_blank" rel="noopener">Conversar com Jobvis ↗</a></div>'
+        #     )
+        # else:
+        #     gr.HTML(f'<p class="jv-hint">{escape(voice_hint)}</p>')
 
         with gr.Group(visible=True, elem_classes=["js-page"]) as page_start:
             gr.HTML(_stepper(1))
